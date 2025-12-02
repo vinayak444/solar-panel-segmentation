@@ -1,12 +1,26 @@
-## 🧩 1. Local Environment Setup
+# Solar Panel Image Segmentation (U²-Net)
 
-### 1.2 Create a Python Virtual Environment
+This repository provides a full pipeline for segmenting solar panels in RGB images using a fine-tuned U²-Net model.  
+It supports local execution, Dockerized inference, and full AWS Lambda deployment using a container image.
 
-Create a virtual environment in the project root:
+---
+
+# 🚀 1. Clone the Repository
+
+Clone the repository from GitHub and move into the project directory:
+
+    git clone https://github.com/vinayak444/solar-panel-segmentation.git
+    cd solar-panel-segmentation
+
+---
+
+# 🧩 2. Local Python Environment Setup
+
+## 2.1 Create a Virtual Environment
 
     python -m venv .venv
 
-### Activate the environment
+## 2.2 Activate the Environment
 
 Windows:
 
@@ -16,226 +30,156 @@ Linux / macOS:
 
     source .venv/bin/activate
 
----
-
-### 1.3 Install Dependencies
-
-Upgrade pip and install all required Python packages:
+## 2.3 Install Dependencies
 
     pip install --upgrade pip
     pip install -r requirements.txt
 
----
+## 2.4 Add Model Weights (Required)
 
-### 1.4 Add the Model Weights
-
-Download or copy your trained U²-Net model and place it inside the weights folder:
+Place your trained U²-Net model inside:
 
     weights/u2net_multiclass.pt
 
-This file is required for inference. It is not tracked in git and must be added manually.
+This file is NOT included in git and must be added manually.
 
 ---
 
-## 🖥️ 2. Running Segmentation Locally
+# 🖥️ 3. Run Segmentation Locally
 
-### 2.1 Run on a Single Image
-
-Run the segmentation pipeline on one input image:
+## 3.1 Run on a Single Image
 
     python core.py --input image_097.jpg --output output_mask.png
 
-What this does:
+This will:
+- Load U²-Net from the weights folder  
+- Preprocess the input  
+- Generate a segmentation mask  
+- Save it to `output_mask.png`  
 
-- Loads the U²-Net model from the weights directory
-- Reads and preprocesses image_097.jpg
-- Generates a segmentation mask
-- Saves the result to output_mask.png
-
----
-
-### 2.2 Run on a Folder of Images
-
-Run segmentation on all images inside a folder:
+## 3.2 Run on an Entire Folder
 
     python core.py --input-dir ./input_images --output-dir ./output_masks
 
-Explanation:
-
-- Processes every image in input_images/
-- Writes the corresponding mask for each image into output_masks/
+This processes every file in `input_images/` and writes masks to `output_masks/`.
 
 ---
 
-## 🐳 3. Docker (Local Inference)
+# 🐳 4. Docker (Local Inference)
 
-Docker allows a consistent environment across machines without installing dependencies directly on the host.
-
-### 3.1 Build the Local Docker Image
-
-Build a Docker image for local inference:
+## 4.1 Build Docker Image for Local Execution
 
     docker build -t solar-seg-local -f Dockerfile.local .
 
-Explanation:
-
-- Builds an image named solar-seg-local
-- Uses Dockerfile.local
-- Installs dependencies and copies the project files into the container
-
----
-
-### 3.2 Run the Container (HTTP API Mode)
-
-If the container exposes an HTTP endpoint (for example with FastAPI or Flask):
+## 4.2 Run Container (API Mode)
 
     docker run --rm -p 8080:8080 solar-seg-local
 
-Then you can open the following URL in a browser or send HTTP requests to it:
+Access the API:
 
     http://localhost:8080
 
----
-
-### 3.3 Run Segmentation Directly (Script Mode)
-
-Run the segmentation script inside the container while mounting the current directory.
+## 4.3 Run Segmentation Inside Container (Script Mode)
 
 Windows:
 
     docker run --rm -v %CD%:/app solar-seg-local ^
-      python core.py --input image_097.jpg --output output_mask.png
+        python core.py --input image_097.jpg --output output_mask.png
 
 Linux / macOS:
 
     docker run --rm -v $(pwd):/app solar-seg-local \
-      python core.py --input image_097.jpg --output output_mask.png
-
-Explanation:
-
-- Mounts your local project folder into /app inside the container
-- Runs core.py using the Python environment inside the container
-- Writes the output mask back to the mounted folder on your machine
+        python core.py --input image_097.jpg --output output_mask.png
 
 ---
 
-## ☁️ 4. AWS Lambda Deployment (Container Image)
+# ☁️ 5. Build AWS Lambda-Compatible Docker Image
 
-This project supports deploying the model as a serverless function using AWS Lambda with a container image.
-
-### 4.1 Build Lambda-Compatible Docker Image
-
-Build an image that follows the AWS Lambda container format:
+Use the provided Lambda Dockerfile:
 
     docker build -t solar-seg-lambda -f Dockerfile.lamda .
 
-Explanation:
+This builds an AWS Lambda–compatible image containing:
+- The U²-Net model (from weights/)
+- The inference logic (core.py)
+- The Lambda handler (handler.py)
 
-- Builds an image named solar-seg-lambda
-- Uses Dockerfile.lamda
-- Based on an AWS Lambda–compatible base image
-- Includes the model and inference code
-
----
-
-### 4.2 (Optional) Test Lambda Image Locally
-
-Run the Lambda image locally using Docker:
+## 5.1 Optional: Test Lambda Image Locally
 
     docker run -p 9000:8080 solar-seg-lambda
 
-Invoke it with a test event:
+Invoke it:
 
-    curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" ^
-      -d "{\"test\": \"data\"}"
-
-(or the same command without ^ on Linux/macOS, using a single line.)
-
-This lets you verify that the Lambda handler is working before deploying to AWS.
+    curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+        -d "{\"test\":\"data\"}"
 
 ---
 
-## ☁️ 5. Push Image to AWS ECR
+# 📦 6. Push Image to AWS ECR (Elastic Container Registry)
 
-To use the image in AWS Lambda, push it to Amazon ECR (Elastic Container Registry). Replace 123456789012 with your own AWS account ID and adjust the region if needed.
+Replace **123456789012** with your AWS account ID.
 
-### 5.1 Authenticate Docker to ECR
-
-Log in Docker to your ECR registry:
+## 6.1 Authenticate Docker to ECR
 
     aws ecr get-login-password --region eu-central-1 ^
-      | docker login --username AWS --password-stdin 123456789012.dkr.ecr.eu-central-1.amazonaws.com
+        | docker login --username AWS --password-stdin 123456789012.dkr.ecr.eu-central-1.amazonaws.com
 
----
+## 6.2 Tag the Docker Image
 
-### 5.2 Tag Your Image
+    docker tag solar-seg-lambda:latest \
+        123456789012.dkr.ecr.eu-central-1.amazonaws.com/solar-segmentation:latest
 
-Tag the local image with the ECR repository URI:
-
-    docker tag solar-seg-lambda:latest 123456789012.dkr.ecr.eu-central-1.amazonaws.com/solar-segmentation:latest
-
----
-
-### 5.3 Push the Image
-
-Push the tagged image to ECR:
+## 6.3 Push Image to ECR
 
     docker push 123456789012.dkr.ecr.eu-central-1.amazonaws.com/solar-segmentation:latest
 
 ---
 
-## 🟦 6. Deploy to AWS Lambda
+# 🟦 7. Deploy AWS Lambda Function (Container Image)
 
-After the image is available in ECR:
+1. Open **AWS Console → Lambda → Create Function**
+2. Choose **“Container Image”**
+3. Select your ECR image:
+   
+       123456789012.dkr.ecr.eu-central-1.amazonaws.com/solar-segmentation:latest
 
-1. Open the AWS Console and go to AWS Lambda → Create function
-2. Choose “Container image” as the function type
-3. Select the repository and image tag from ECR (for example solar-segmentation:latest)
-4. AWS Lambda will use the container’s entrypoint and handler, typically:
+4. Lambda automatically uses the handler defined in the Dockerfile:
 
-    handler.lambda_handler
-
-(defined inside handler.py and referenced in the Dockerfile.)
+       handler.lambda_handler
 
 ---
 
-### 6.1 Example Lambda Input Events
+# 📥 8. Example Lambda Event Inputs
 
-Base64 image input example:
+## 8.1 Base64 Image Input
 
     {
       "image_base64": "..."
     }
 
-S3-based input example:
+## 8.2 S3 File Input
 
     {
       "bucket": "my-bucket",
       "key": "image_097.jpg"
     }
 
-Your lambda_handler function should read this input, load the model, run segmentation, and either return the mask (for example as base64) or write it back to S3.
-
 ---
 
-## 🔌 7. API Gateway (Optional HTTP Endpoint)
+# 🔌 9. API Gateway Integration (Optional)
 
-If you want a public HTTP endpoint, connect your Lambda function to API Gateway.
+Expose Lambda as an HTTP API:
 
-Example of calling the endpoint once it is configured:
-
-    curl -X POST ^
-      -H "Content-Type: application/json" ^
-      -d "{\"image_base64\": \"<BASE64>\"}" ^
+    curl -X POST \
+      -H "Content-Type: application/json" \
+      -d "{\"image_base64\":\"<BASE64>\"}" \
       https://your-api-id.execute-api.eu-central-1.amazonaws.com/predict
 
-On Linux/macOS you can use the same command without line breaks or ^ characters.
-
 ---
 
-## 📦 8. .gitignore
+# 📄 10. .gitignore
 
-Use the following .gitignore rules to avoid committing large model files or temporary Python files:
+Recommended entries to avoid committing large files:
 
     weights/
     *.pt
@@ -243,3 +187,9 @@ Use the following .gitignore rules to avoid committing large model files or temp
     *.onnx
     __pycache__/
     *.pyc
+
+---
+
+
+This README section can be pasted directly into your repository.
+
