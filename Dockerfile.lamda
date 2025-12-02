@@ -1,0 +1,24 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+# Workdir for Lambda is /var/task by default, but set it explicitly for clarity
+WORKDIR /var/task
+
+# 1) Install deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 2) Copy your app code and model weights
+COPY handler.py ./handler.py
+COPY core.py    ./core.py
+COPY U2NET      ./U2NET
+COPY weights/u2net_multiclass.pt /var/task/u2net_multiclass.pt
+
+# 3) Environment
+ENV MODEL_PATH=/var/task/u2net_multiclass.pt
+ENV OUT_PREFIX=outputs/
+ENV ARRAY_COLS=4
+ENV ARRAY_ROWS=5
+ENV PYTHONPATH=/var/task
+
+# 4) Lambda entrypoint: module.function
+CMD ["handler.lambda_handler"]

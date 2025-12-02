@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+# OpenCV runtime libs
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+
+# App code + weights
+COPY U2NET ./U2NET
+# copy core module
+COPY core.py ./core.py
+# local CLI runner
+COPY tools/infer_cli.py ./tools/infer_cli.py
+# trained weights
+COPY weights/u2net_multiclass.pt ./weights/u2net_multiclass.pt
+
+ENV PYTHONPATH=/app
+
+ENTRYPOINT ["python", "tools/infer_cli.py", "--in_dir", "/in", "--out_dir", "/out", "--model", "/app/weights/u2net_multiclass.pt", "--img_size", "512", "--cols", "4", "--rows", "5", "--out_width", "1500", "--pad", "20"]

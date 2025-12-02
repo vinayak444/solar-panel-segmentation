@@ -1,0 +1,17 @@
+{
+  "LambdaFunctionConfigurations": [
+    {
+      "Id": "invoke-segmentation",
+      "LambdaFunctionArn": "arn:aws:lambda:eu-central-1:810444143692:function:solar_park-image_segmentation",
+      "Events": ["s3:ObjectCreated:*"],
+      "Filter": {
+        "Key": {
+          "FilterRules": [
+            { "Name": "prefix", "Value": "incoming/" },
+            { "Name": "suffix", "Value": ".jpg" }
+          ]
+        }
+      }
+    }
+  ]
+}
